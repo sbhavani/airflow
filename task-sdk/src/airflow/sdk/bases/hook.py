@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 
@@ -26,8 +26,11 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# TypeVar for the connection type that a hook uses
+T = TypeVar("T")
 
-class BaseHook(LoggingMixin):
+
+class BaseHook(LoggingMixin, Generic[T]):
     """
     Abstract base class for hooks.
 
@@ -43,10 +46,14 @@ class BaseHook(LoggingMixin):
         *airflow.task.hooks.airflow.providers.common.sql.hooks.sql.DbApiHook* as logger).
     """
 
-    def __init__(self, logger_name: str | None = None):
+    conn_name_attr: str | None = None
+    default_conn_name: str | None = None
+
+    def __init__(self, logger_name: str | None = None) -> None:
         super().__init__()
         self._log_config_logger_name = "airflow.task.hooks"
         self._logger_name = logger_name
+        self._conn: T | None = None
 
     @classmethod
     def get_connection(cls, conn_id: str) -> Connection:
@@ -77,7 +84,7 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    def get_hook(cls, conn_id: str, hook_params: dict | None = None):
+    def get_hook(cls, conn_id: str | None = None, hook_params: dict[str, Any] | None = None) -> BaseHook:
         """
         Return default hook for this connection id.
 
@@ -85,10 +92,10 @@ class BaseHook(LoggingMixin):
         :param hook_params: hook parameters
         :return: default hook for this connection
         """
-        connection = cls.get_connection(conn_id)
+        connection = cls.get_connection(conn_id or cls.default_conn_name or "")
         return connection.get_hook(hook_params=hook_params)
 
-    def get_conn(self) -> Any:
+    def get_conn(self) -> T:
         """Return connection for the hook."""
         raise NotImplementedError()
 
@@ -99,3 +106,13 @@ class BaseHook(LoggingMixin):
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {}
+
+    def close_conn(self) -> None:
+        """Close the connection. Override in subclasses if needed."""
+        self._conn = None
+
+    def __enter__(self) -> BaseHook[T]:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close_conn()

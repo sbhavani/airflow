@@ -1307,11 +1307,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __setstate__(self, state):
         self.__dict__ = state
 
-    def add_inlets(self, inlets: Iterable[Any]):
+    def add_inlets(self, inlets: Iterable[Any]) -> None:
         """Set inlets to this operator."""
         self.inlets.extend(inlets)
 
-    def add_outlets(self, outlets: Iterable[Any]):
+    def add_outlets(self, outlets: Iterable[Any]) -> None:
         """Define the outlets of this operator."""
         self.outlets.extend(outlets)
 
@@ -1400,7 +1400,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def task_display_name(self) -> str:
         return self._task_display_name or self.task_id
 
-    def has_dag(self):
+    def has_dag(self) -> bool:
         """Return True if the Operator has been assigned to a Dag."""
         return self._dag is not None
 
@@ -1448,7 +1448,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         operator needs to be cleaned up, or it will leave ghost processes behind.
         """
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Task({self.task_type}): {self.task_id}>"
 
     @property
@@ -1597,7 +1597,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
-    def pre_execute(self, context: Any):
+    def pre_execute(self, context: Context) -> None:
         """Execute right before self.execute() is called."""
 
     def execute(self, context: Context) -> Any:
@@ -1611,7 +1611,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         raise NotImplementedError()
 
-    def post_execute(self, context: Any, result: Any = None):
+    def post_execute(self, context: Context, result: Any | None = None) -> None:
         """
         Execute right after self.execute() is called.
 
@@ -1639,7 +1639,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+    def resume_execution(
+        self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context
+    ) -> Any:
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
         from airflow.sdk.exceptions import TaskDeferralError, TaskDeferralTimeout
 

@@ -326,16 +326,16 @@ class BaseSensorOperator(BaseOperator):
         return new_interval
 
     @property
-    def reschedule(self):
+    def reschedule(self) -> bool:
         """Define mode rescheduled sensors."""
         return self.mode == "reschedule"
 
     @classmethod
-    def get_serialized_fields(cls):
+    def get_serialized_fields(cls) -> frozenset[str]:
         return super().get_serialized_fields() | {"reschedule", "_is_sensor"}
 
 
-def poke_mode_only(cls):
+def poke_mode_only(cls: type[BaseSensorOperator]) -> type[BaseSensorOperator]:
     """
     Decorate a subclass of BaseSensorOperator with poke.
 
@@ -347,11 +347,11 @@ def poke_mode_only(cls):
     :param cls: BaseSensor class to enforce methods only use 'poke' mode.
     """
 
-    def decorate(cls_type):
-        def mode_getter(_):
+    def decorate(cls_type: type[BaseSensorOperator]) -> type[BaseSensorOperator]:
+        def mode_getter(_: BaseSensorOperator) -> str:
             return "poke"
 
-        def mode_setter(_, value):
+        def mode_setter(_: BaseSensorOperator, value: str) -> None:
             if value != "poke":
                 raise ValueError(f"Cannot set mode to '{value}'. Only 'poke' is acceptable")
 
