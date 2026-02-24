@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING, Any
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from airflow.sdk.definitions.connection import Connection
 
 log = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ class BaseHook(LoggingMixin):
         *airflow.task.hooks.airflow.providers.common.sql.hooks.sql.DbApiHook* as logger).
     """
 
-    def __init__(self, logger_name: str | None = None):
+    def __init__(self, logger_name: str | None = None) -> None:
         super().__init__()
         self._log_config_logger_name = "airflow.task.hooks"
         self._logger_name = logger_name
@@ -77,7 +79,7 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    def get_hook(cls, conn_id: str, hook_params: dict | None = None):
+    def get_hook(cls, conn_id: str, hook_params: Mapping[str, Any] | None = None) -> BaseHook:
         """
         Return default hook for this connection id.
 
@@ -94,8 +96,10 @@ class BaseHook(LoggingMixin):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection form widgets."""
         return {}
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return UI field behaviour."""
         return {}

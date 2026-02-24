@@ -54,12 +54,17 @@ class PokeReturnValue:
     :param xcom_value: An optional XCOM value to be returned by the operator.
     """
 
+    __slots__ = ("xcom_value", "is_done")
+
     def __init__(self, is_done: bool, xcom_value: Any | None = None) -> None:
-        self.xcom_value = xcom_value
-        self.is_done = is_done
+        self.xcom_value: Any | None = xcom_value
+        self.is_done: bool = is_done
 
     def __bool__(self) -> bool:
         return self.is_done
+
+    def __repr__(self) -> str:
+        return f"PokeReturnValue(is_done={self.is_done}, xcom_value={self.xcom_value!r})"
 
 
 class BaseSensorOperator(BaseOperator):
@@ -128,7 +133,7 @@ class BaseSensorOperator(BaseOperator):
         super().__init__(**kwargs)
         self.poke_interval = self._coerce_poke_interval(poke_interval).total_seconds()
         self.soft_fail = soft_fail
-        self.timeout: int | float = self._coerce_timeout(timeout).total_seconds()
+        self.timeout: float = self._coerce_timeout(timeout).total_seconds()
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
@@ -326,13 +331,13 @@ class BaseSensorOperator(BaseOperator):
         return new_interval
 
     @property
-    def reschedule(self):
+    def reschedule(self) -> bool:
         """Define mode rescheduled sensors."""
         return self.mode == "reschedule"
 
     @classmethod
-    def get_serialized_fields(cls):
-        return super().get_serialized_fields() | {"reschedule", "_is_sensor"}
+    def get_serialized_fields(cls) -> frozenset[str]:
+        return frozenset({*super().get_serialized_fields(), "reschedule", "_is_sensor"})
 
 
 def poke_mode_only(cls):
