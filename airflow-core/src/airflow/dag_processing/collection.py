@@ -427,6 +427,7 @@ def update_dag_parsing_results_in_db(
     warning_types: tuple[DagWarningType, ...] = (
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
+        DagWarningType.MEMORY_LIMIT_EXCEEDED,
     ),
     files_parsed: set[tuple[str, str]] | None = None,
 ):
