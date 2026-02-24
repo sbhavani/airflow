@@ -2928,6 +2928,76 @@ def mock_task_instance():
 
 
 @pytest.fixture
+def mock_executor():
+    """Provide a mock executor for testing DAG task execution.
+
+    Usage:
+        def test_my_dag(mock_executor):
+            mock_executor.execute_task.return_value = "success"
+            # ... run tests
+    """
+    from unittest.mock import MagicMock
+
+    executor = MagicMock()
+    executor.execute_task = MagicMock(return_value=None)
+    executor.queue_task_instance = MagicMock()
+    executor.sync_task_instance = MagicMock()
+    executor.has_task = MagicMock(return_value=False)
+    executor.cleanup = MagicMock()
+    return executor
+
+
+@pytest.fixture
+def mock_dag_bucket():
+    """Provide a mock DAG bundle for testing.
+
+    Usage:
+        def test_my_dag(mock_dag_bundle):
+            mock_dag_bundle.name = "test_bundle"
+            # ... run tests
+    """
+    from unittest.mock import MagicMock
+
+    bundle = MagicMock()
+    bundle.name = "test_bundle"
+    bundle.version = "1.0.0"
+    return bundle
+
+
+@pytest.fixture
+def clean_task_instance():
+    """Provide a clean task instance with proper session management.
+
+    Usage:
+        def test_my_dag(clean_task_instance):
+            dag = create_dag_instance("test_dag")
+            task = EmptyOperator(task_id="task1", dag=dag)
+            ti = clean_task_instance(task, dag)
+            # ... run tests
+    """
+    from tests_common.test_utils.dag_testing import (
+        create_task_instance as _create_task_instance,
+    )
+
+    def _create_clean_ti(
+        task,
+        dag,
+        run_id: str = "test_run",
+        state=None,
+        session=None,
+    ):
+        return _create_task_instance(
+            task,
+            dag,
+            run_id=run_id,
+            state=state,
+            session=session,
+        )
+
+    return _create_clean_ti
+
+
+@pytest.fixture
 def listener_manager():
     """
     Fixture that provides a listener manager for tests.
