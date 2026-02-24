@@ -104,3 +104,4 @@ class DagWarningType(str, Enum):
     ASSET_CONFLICT = "asset conflict"
     NONEXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+    MEMORY_LIMIT_EXCEEDED = "memory limit exceeded"

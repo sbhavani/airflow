@@ -71,6 +71,7 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_er
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
+from airflow.utils.memory_profiler import MemoryMonitoringResult, get_memory_profiler
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -218,25 +219,62 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
             import_errors=stability_check_error_dict,
         )
 
+    # Start memory monitoring before DAG parsing
+    memory_profiler = get_memory_profiler()
+    memory_warnings: list[dict] = []
+    dag_ids: list[str] = []
+    if memory_profiler.enabled:
+        memory_profiler.start_monitoring()
+
     bag = BundleDagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
         load_op_links=False,
     )
+    dag_ids = list(bag.dag_ids)
 
     if msg.callback_requests:
         # If the request is for callback, we shouldn't serialize the Dags
         _execute_callbacks(bag, msg.callback_requests, log)
+        # Stop memory monitoring before returning
+        if memory_profiler.enabled:
+            memory_profiler.stop_monitoring()
         return None
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
+
+    # Check memory limits after parsing and stop monitoring
+    if memory_profiler.enabled:
+        for mem_result in memory_profiler.check_memory_limit(file_path=msg.file):
+            if mem_result.is_warning:
+                # Create a warning for each DAG in the file (matching the pattern of other warnings)
+                for dag_id in dag_ids:
+                    memory_warnings.append(
+                        {
+                            "dag_id": dag_id,
+                            "warning_type": "memory_limit_exceeded",
+                            "message": mem_result.message,
+                        }
+                    )
+                log.warning(
+                    "memory_limit_exceeded",
+                    file=msg.file,
+                    memory_used_mb=mem_result.memory_used_mb,
+                    limit_mb=mem_result.limit_mb,
+                    threshold_percent=mem_result.threshold_percentage,
+                )
+        memory_profiler.stop_monitoring()
+
+    # Combine stability warnings with memory warnings
+    all_warnings = list(stability_check_result.get_formatted_warnings(dag_ids)) + memory_warnings
+
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
+        warnings=all_warnings,
     )
     return result
 
