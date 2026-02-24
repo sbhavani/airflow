@@ -178,7 +178,7 @@ class BaseSensorOperator(BaseOperator):
         """Override when deriving this class."""
         raise AirflowException("Override me.")
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> Any | None:
         started_at: datetime.datetime | float
 
         if self.reschedule:

@@ -1597,7 +1597,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
-    def pre_execute(self, context: Any):
+    def pre_execute(self, context: Context):
         """Execute right before self.execute() is called."""
 
     def execute(self, context: Context) -> Any:
@@ -1611,7 +1611,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         raise NotImplementedError()
 
-    def post_execute(self, context: Any, result: Any = None):
+    def post_execute(self, context: Context, result: Any = None):
         """
         Execute right after self.execute() is called.
 
