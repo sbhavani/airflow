@@ -14,3 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from airflow.sdk.observability.metrics.user_defined_metrics import (
+    AggregationFunction,
+    MetricType,
+)
+
+__all__ = [
+    "AggregationFunction",
+    "MetricType",
+]

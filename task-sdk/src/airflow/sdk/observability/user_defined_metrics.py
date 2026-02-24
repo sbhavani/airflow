@@ -18,38 +18,14 @@
 from __future__ import annotations
 
 import logging
-from enum import Enum
 from typing import TYPE_CHECKING, Any
+
+from airflow.sdk.observability.metrics import AggregationFunction, MetricType
 
 if TYPE_CHECKING:
     from datetime import datetime
 
 log = logging.getLogger(__name__)
-
-
-class AggregationFunction(str, Enum):
-    """Aggregation functions for user-defined metrics.
-
-    These define how multiple metric values should be aggregated when queried.
-    """
-
-    SUM = "sum"
-    """Sum all metric values."""
-
-    AVG = "avg"
-    """Calculate the average of metric values."""
-
-    MIN = "min"
-    """Get the minimum metric value."""
-
-    MAX = "max"
-    """Get the maximum metric value."""
-
-    COUNT = "count"
-    """Count the number of metric values."""
-
-    LAST = "last"
-    """Get the last recorded metric value."""
 
 
 class UserDefinedMetrics:
@@ -132,7 +108,8 @@ class UserDefinedMetrics:
         self,
         metric_name: str,
         value: float,
-        aggregation: AggregationFunction = AggregationFunction.SUM,
+        metric_type: MetricType | None = None,
+        aggregation: AggregationFunction | None = None,
         metric_label: str | None = None,
         unit: str | None = None,
         tags: dict[str, str] | None = None,
@@ -142,7 +119,10 @@ class UserDefinedMetrics:
 
         :param metric_name: Name of the metric (required)
         :param value: Numeric value of the metric (required)
-        :param aggregation: Aggregation function to use (default: SUM)
+        :param metric_type: Type of metric for automatic aggregation (COUNT, GAUGE, TIMING).
+            If provided, aggregation will be automatically selected based on metric type.
+        :param aggregation: Aggregation function to use (default: SUM if not using metric_type).
+            Ignored if metric_type is provided.
         :param metric_label: Optional label to differentiate metric instances
         :param unit: Optional unit of measurement (e.g., "seconds", "bytes")
         :param tags: Optional dictionary of tags for filtering
@@ -150,6 +130,12 @@ class UserDefinedMetrics:
         """
         if not metric_name:
             raise ValueError("metric_name is required")
+
+        # Auto-select aggregation based on metric_type
+        if metric_type is not None:
+            aggregation = metric_type.default_aggregation
+        elif aggregation is None:
+            aggregation = AggregationFunction.SUM
 
         dag_id, task_id, run_id, map_index = self._get_task_info()
 
