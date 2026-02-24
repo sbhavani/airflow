@@ -65,6 +65,8 @@ __all__ = [
     "TaskInstanceState",
     "Trace",
     "TriggerRule",
+    "UserDefinedMetrics",
+    "AggregationFunction",
     "Variable",
     "WeeklyMapper",
     "WeightRule",
@@ -146,6 +148,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time import macros
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.observability.trace import Trace
+    from airflow.sdk.observability.user_defined_metrics import AggregationFunction, UserDefinedMetrics
 
     conf: AirflowSDKConfigParser
 
@@ -196,6 +199,8 @@ __lazy_imports: dict[str, str] = {
     "TaskInstanceState": ".api.datamodels._generated",
     "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
+    "UserDefinedMetrics": ".observability.user_defined_metrics",
+    "AggregationFunction": ".observability.user_defined_metrics",
     "Variable": ".definitions.variable",
     "WeeklyMapper": ".definitions.partition_mappers.temporal",
     "WeightRule": ".api.datamodels._generated",
