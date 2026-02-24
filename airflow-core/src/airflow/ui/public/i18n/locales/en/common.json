@@ -261,7 +261,12 @@
       "latestHeartbeat": "Latest triggerer heartbeat",
       "title": "Triggerer Info"
     },
-    "unixname": "Unix Name"
+    "unixname": "Unix Name",
+    "errorDiagnostics": "Error Diagnostics",
+    "errorMessage": "Error Message",
+    "errorType": "Error Type",
+    "possibleCauses": "Possible Causes",
+    "remediationSteps": "Remediation Steps"
   },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",

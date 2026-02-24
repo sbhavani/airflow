@@ -40,6 +40,14 @@ from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
 
 
+class ErrorDiagnosticResponse(BaseModel):
+    """Error diagnostic response containing possible causes and remediation steps."""
+
+    error_type: str
+    possible_causes: list[str]
+    remediation_steps: list[str]
+
+
 class TaskInstanceResponse(BaseModel):
     """TaskInstance serializer for responses."""
 
@@ -80,6 +88,52 @@ class TaskInstanceResponse(BaseModel):
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
     dag_version: DagVersionResponse | None
+    # Error message from the last failed task execution attempt
+    error: str | None = None
+    # Error diagnostic with possible causes and remediation steps
+    error_diagnostic: ErrorDiagnosticResponse | None = None
+
+    @model_validator(mode="after")
+    def compute_error_diagnostic(self) -> TaskInstanceResponse:
+        """Compute error diagnostic from error message if available."""
+        from airflow import error_diagnostics
+
+        if self.error and self.state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+            # Try to extract error type from the error message
+            error_msg = self.error
+            error_type = None
+
+            # Try to identify the error type from common Airflow exceptions
+            for known_type in error_diagnostics.ERROR_DIAGNOSTICS:
+                if known_type in error_msg:
+                    error_type = known_type
+                    break
+
+            # If we found a matching error type, get the diagnostic
+            if error_type:
+                diagnostic = error_diagnostics.get_error_diagnostic(error_type)
+                if diagnostic:
+                    self.error_diagnostic = ErrorDiagnosticResponse(
+                        error_type=diagnostic.error_type,
+                        possible_causes=list(diagnostic.possible_causes),
+                        remediation_steps=list(diagnostic.remediation_steps),
+                    )
+            else:
+                # If we can't identify the error type, provide generic diagnostic
+                self.error_diagnostic = ErrorDiagnosticResponse(
+                    error_type="UnknownError",
+                    possible_causes=[
+                        "An unexpected error occurred during task execution",
+                        "Check the task logs for more details",
+                    ],
+                    remediation_steps=[
+                        "Review the task logs for specific error details",
+                        "Check the task configuration and dependencies",
+                        "Verify the external systems are accessible",
+                    ],
+                )
+
+        return self
 
 
 class TaskInstanceCollectionResponse(BaseModel):

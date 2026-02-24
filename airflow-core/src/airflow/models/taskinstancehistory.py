@@ -96,6 +96,8 @@ class TaskInstanceHistory(Base):
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
     executor: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Error message from the task execution attempt
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     executor_config: Mapped[dict | None] = mapped_column(ExecutorConfigType(pickler=dill), nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True
