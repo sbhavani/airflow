@@ -467,6 +467,9 @@ class TaskInstance(Base, LoggingMixin):
     span_status: Mapped[str] = mapped_column(
         String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
     )
+    error_diagnostics: Mapped[dict | None] = mapped_column(
+        MutableDict.as_mutable(ExtendedJSON), nullable=True
+    )
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
@@ -1547,6 +1550,21 @@ class TaskInstance(Base, LoggingMixin):
 
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
+
+            # Generate error diagnostics for failed tasks
+            try:
+                from airflow.utils.error_diagnostics.generator import generate_diagnostics
+
+                exception = None
+                if error:
+                    # Reconstruct exception from error string if possible
+                    exception = Exception(error)
+                diagnostics = generate_diagnostics(ti, exception)
+                if diagnostics:
+                    ti.error_diagnostics = diagnostics
+            except Exception:
+                # Don't fail the task just because diagnostics generation failed
+                log.debug("Failed to generate error diagnostics", exc_info=True)
 
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
