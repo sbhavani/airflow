@@ -37,6 +37,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.dag_processing import memory_profiler
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
@@ -208,37 +209,56 @@ def _parse_file_entrypoint():
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
-    stability_check_result = check_dag_file_stability(os.fspath(msg.file))
+    # Get memory threshold config and create profiler
+    config = memory_profiler.get_memory_threshold_config()
+    profiler = memory_profiler.MemoryProfiler(config)
 
-    if stability_check_error_dict := stability_check_result.get_error_format_dict(msg.file, msg.bundle_path):
-        # If Dag stability check level is error, we shouldn't parse the Dags and return the result early
-        return DagFileParsingResult(
-            fileloc=msg.file,
-            serialized_dags=[],
-            import_errors=stability_check_error_dict,
+    # Start memory profiling
+    profiler.start_profiling()
+
+    try:
+        stability_check_result = check_dag_file_stability(os.fspath(msg.file))
+
+        if stability_check_error_dict := stability_check_result.get_error_format_dict(msg.file, msg.bundle_path):
+            # If Dag stability check level is error, we shouldn't parse the Dags and return the result early
+            return DagFileParsingResult(
+                fileloc=msg.file,
+                serialized_dags=[],
+                import_errors=stability_check_error_dict,
+            )
+
+        bag = BundleDagBag(
+            dag_folder=msg.file,
+            bundle_path=msg.bundle_path,
+            bundle_name=msg.bundle_name,
+            load_op_links=False,
         )
 
-    bag = BundleDagBag(
-        dag_folder=msg.file,
-        bundle_path=msg.bundle_path,
-        bundle_name=msg.bundle_name,
-        load_op_links=False,
-    )
+        if msg.callback_requests:
+            # If the request is for callback, we shouldn't serialize the Dags
+            _execute_callbacks(bag, msg.callback_requests, log)
+            return None
 
-    if msg.callback_requests:
-        # If the request is for callback, we shouldn't serialize the Dags
-        _execute_callbacks(bag, msg.callback_requests, log)
-        return None
-
-    serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
-    bag.import_errors.update(serialization_import_errors)
-    result = DagFileParsingResult(
-        fileloc=msg.file,
-        serialized_dags=serialized_dags,
-        import_errors=bag.import_errors,
-        warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
-    )
-    return result
+        serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
+        bag.import_errors.update(serialization_import_errors)
+        result = DagFileParsingResult(
+            fileloc=msg.file,
+            serialized_dags=serialized_dags,
+            import_errors=bag.import_errors,
+            warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
+        )
+        return result
+    finally:
+        # End memory profiling and process results
+        profile_result = profiler.end_profiling(msg.file)
+        if profile_result:
+            # Emit metrics
+            memory_profiler.emit_memory_metrics(profile_result)
+            # Store for historical access
+            memory_profiler.store_profile_result(profile_result)
+            # Check threshold and emit warning if needed
+            if profile_result.exceeded_threshold:
+                memory_profiler.emit_memory_warning(profile_result, config.threshold_bytes)
 
 
 def _serialize_dags(
