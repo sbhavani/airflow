@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading } from "@chakra-ui/react";
+import { Box, Heading } from "@chakra-ui/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
@@ -31,6 +31,7 @@ import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { ErrorDiagnostics } from "./ErrorDiagnostics";
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
@@ -111,7 +112,17 @@ export const TaskInstance = () => {
             {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
           </Heading>
         ) : (
-          <Header taskInstance={taskInstance} />
+          <Box>
+            <Header taskInstance={taskInstance} />
+            {taskInstance.state === "failed" && taskInstance.error && (
+              <Box mt={4}>
+                <ErrorDiagnostics
+                  error={taskInstance.error}
+                  errorCategory={taskInstance.error_category}
+                />
+              </Box>
+            )}
+          </Box>
         )}
       </DetailsLayout>
     </ReactFlowProvider>

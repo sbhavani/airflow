@@ -84,6 +84,10 @@ class TITerminalStatePayload(StrictBaseModel):
     end_date: UtcDateTime
     """When the task completed executing"""
     rendered_map_index: str | None = None
+    error: str | None = Field(default=None, description="Error message if task failed")
+    error_category: str | None = Field(
+        default=None, description="Error category for classification"
+    )
 
 
 class TISuccessStatePayload(StrictBaseModel):

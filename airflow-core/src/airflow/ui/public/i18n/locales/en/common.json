@@ -178,6 +178,7 @@
   },
   "security": {
     "actions": "Actions",
+    "recommendedAction": "Recommended Action",
     "permissions": "Permissions",
     "resources": "Resources",
     "roles": "Roles",
@@ -324,6 +325,7 @@
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
+  "viewDocumentation": "View Documentation",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",

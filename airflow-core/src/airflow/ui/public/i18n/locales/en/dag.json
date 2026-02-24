@@ -176,5 +176,11 @@
   "taskGroups": {
     "collapseAll": "Collapse all task groups",
     "expandAll": "Expand all task groups"
+  },
+  "errorDiagnostics": "Error Diagnostics",
+  "errorDiagnosticsSection": {
+    "errorCategory": "Error Category",
+    "errorMessage": "Error Message",
+    "suggestedActions": "Suggested Actions"
   }
 }

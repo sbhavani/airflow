@@ -1282,17 +1282,24 @@ def run(
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
         ti.end_date = datetime.now(tz=timezone.utc)
+        error_msg = str(e)
+        # Determine error category
+        error_category = "code_error"
+        if "timeout" in error_msg.lower() or "sensor" in error_msg.lower():
+            error_category = "timeout"
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
+            error=error_msg,
+            error_category=error_category,
         )
         state = TaskInstanceState.FAILED
         error = e
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
-        msg, state = _handle_current_task_failed(ti)
+        msg, state = _handle_current_task_failed(ti, error=e)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
@@ -1300,21 +1307,24 @@ def run(
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
         ti.end_date = datetime.now(tz=timezone.utc)
+        error_msg = str(e)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
+            error=error_msg,
+            error_category="external_termination",
         )
         state = TaskInstanceState.FAILED
         error = e
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
         log.error("Task exited", exit_code=e.code)
-        msg, state = _handle_current_task_failed(ti)
+        msg, state = _handle_current_task_failed(ti, error=e)
         error = e
     except BaseException as e:
         log.exception("Task failed with exception")
-        msg, state = _handle_current_task_failed(ti)
+        msg, state = _handle_current_task_failed(ti, error=e)
         error = e
     finally:
         Stats.incr(
@@ -1361,6 +1371,7 @@ def _handle_current_task_success(
 
 def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
+    error: BaseException | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
@@ -1374,11 +1385,35 @@ def _handle_current_task_failed(
     Stats.incr("operator_failures", tags={**stats_tags, "operator": operator})
     Stats.incr("ti_failures", tags=stats_tags)
 
+    # Extract error message and category
+    error_msg: str | None = None
+    error_category: str | None = None
+    if error:
+        error_msg = str(error)
+        # Extract exception type for basic categorization
+        error_type = type(error).__name__
+        if "Timeout" in error_type or "timeout" in error_msg.lower():
+            error_category = "timeout"
+        elif "Connection" in error_type or "connection" in error_msg.lower():
+            error_category = "connection"
+        elif "Authentication" in error_type or "auth" in error_msg.lower():
+            error_category = "authentication"
+        elif "Permission" in error_type or "permission" in error_msg.lower():
+            error_category = "permission"
+        elif "ValueError" in error_type or "validation" in error_msg.lower():
+            error_category = "validation"
+        else:
+            error_category = "code_error"
+
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
     return (
         TaskState(
-            state=TaskInstanceState.FAILED, end_date=end_date, rendered_map_index=ti.rendered_map_index
+            state=TaskInstanceState.FAILED,
+            end_date=end_date,
+            rendered_map_index=ti.rendered_map_index,
+            error=error_msg,
+            error_category=error_category,
         ),
         TaskInstanceState.FAILED,
     )
@@ -1414,10 +1449,13 @@ def _handle_trigger_dag_run(
             state = TaskInstanceState.SKIPPED
         else:
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
+            error_msg = f"DagRun already exists for {drte.trigger_dag_id}"
             msg = TaskState(
                 state=TaskInstanceState.FAILED,
                 end_date=datetime.now(tz=timezone.utc),
                 rendered_map_index=ti.rendered_map_index,
+                error=error_msg,
+                error_category="external_service",
             )
             state = TaskInstanceState.FAILED
 
@@ -1466,10 +1504,13 @@ def _handle_trigger_dag_run(
                 log.error(
                     "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
                 )
+                error_msg = f"Triggered DagRun {drte.trigger_dag_id} finished with failed state: {comms_msg.state}"
                 msg = TaskState(
                     state=TaskInstanceState.FAILED,
                     end_date=datetime.now(tz=timezone.utc),
                     rendered_map_index=ti.rendered_map_index,
+                    error=error_msg,
+                    error_category="external_service",
                 )
                 state = TaskInstanceState.FAILED
                 return msg, state

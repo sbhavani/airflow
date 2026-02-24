@@ -491,6 +491,10 @@ class TaskInstance(Base, LoggingMixin):
         ForeignKey("dag_version.id", ondelete="RESTRICT"),
         nullable=True,
     )
+    # Error information for failed tasks
+    error: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Error category for classifying the type of error
+    error_category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
     __table_args__ = (
