@@ -1220,30 +1220,30 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Ensure priority_weight is within the valid range
         self.priority_weight = db_safe_priority(self.priority_weight)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
             return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
         return False
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return not self == other
 
-    def __hash__(self):
-        hash_components = [type(self)]
+    def __hash__(self) -> int:
+        hash_components: list[type | str] = [type(self)]
         for component in self._comps:
             val = getattr(self, component, None)
             try:
                 hash(val)
-                hash_components.append(val)
+                hash_components.append(val)  # type: ignore[arg-type]
             except TypeError:
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
 
     # /Composing Operators ---------------------------------------------
 
-    def __gt__(self, other):
+    def __gt__(self, other: Iterable[attrs.Attribute[Any]] | attrs.Attribute[Any]) -> Self:
         """
         Return [Operator] > [Outlet].
 
@@ -1259,7 +1259,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         return self
 
-    def __lt__(self, other):
+    def __lt__(self, other: Iterable[attrs.Attribute[Any]] | attrs.Attribute[Any]) -> Self:
         """
         Return [Inlet] > [Operator] or [Operator] < [Inlet].
 
@@ -1307,11 +1307,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __setstate__(self, state):
         self.__dict__ = state
 
-    def add_inlets(self, inlets: Iterable[Any]):
+    def add_inlets(self, inlets: Iterable[attrs.Attribute[Any]]) -> None:
         """Set inlets to this operator."""
         self.inlets.extend(inlets)
 
-    def add_outlets(self, outlets: Iterable[Any]):
+    def add_outlets(self, outlets: Iterable[attrs.Attribute[Any]]) -> None:
         """Define the outlets of this operator."""
         self.outlets.extend(outlets)
 
@@ -1400,7 +1400,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def task_display_name(self) -> str:
         return self._task_display_name or self.task_id
 
-    def has_dag(self):
+    def has_dag(self) -> bool:
         """Return True if the Operator has been assigned to a Dag."""
         return self._dag is not None
 
@@ -1448,7 +1448,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         operator needs to be cleaned up, or it will leave ghost processes behind.
         """
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Task({self.task_type}): {self.task_id}>"
 
     @property
@@ -1552,7 +1552,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         other._lock_for_execution = True
         return other
 
-    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
+    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, str]:
         """Serialize; required by DAGNode."""
         from airflow.sdk.api.datamodels._generated import DagAttributeTypes
 
@@ -1597,7 +1597,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
-    def pre_execute(self, context: Any):
+    def pre_execute(self, context: Context) -> None:
         """Execute right before self.execute() is called."""
 
     def execute(self, context: Context) -> Any:
@@ -1611,7 +1611,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         raise NotImplementedError()
 
-    def post_execute(self, context: Any, result: Any = None):
+    def post_execute(self, context: Context, result: Any | None = None) -> None:
         """
         Execute right after self.execute() is called.
 
@@ -1714,11 +1714,11 @@ class BaseAsyncOperator(BaseOperator):
     def is_async(self) -> bool:
         return True
 
-    async def aexecute(self, context):
+    async def aexecute(self, context: Context) -> Any:
         """Async version of execute(). Subclasses should implement this."""
         raise NotImplementedError()
 
-    def execute(self, context):
+    def execute(self, context: Context) -> Any:
         """Run `aexecute()` inside an event loop."""
         with event_loop() as loop:
             if self.execution_timeout:

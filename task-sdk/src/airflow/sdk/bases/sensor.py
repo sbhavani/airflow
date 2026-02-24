@@ -248,7 +248,9 @@ class BaseSensorOperator(BaseOperator):
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
-    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+    def resume_execution(
+        self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context
+    ) -> Any:
         # Use nested try/except to convert TaskDeferralTimeout to AirflowSensorTimeout
         # while still allowing soft_fail/never_fail to handle both exception types.
         try:
@@ -326,12 +328,13 @@ class BaseSensorOperator(BaseOperator):
         return new_interval
 
     @property
-    def reschedule(self):
+    @property
+    def reschedule(self) -> bool:
         """Define mode rescheduled sensors."""
         return self.mode == "reschedule"
 
     @classmethod
-    def get_serialized_fields(cls):
+    def get_serialized_fields(cls) -> frozenset[str]:
         return super().get_serialized_fields() | {"reschedule", "_is_sensor"}
 
 
