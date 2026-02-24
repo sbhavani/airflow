@@ -2872,6 +2872,32 @@ dag_processor:
       type: string
       example: ~
       default: "warning"
+    memory_profiling_enabled:
+      description: |
+        Enable memory profiling for DAG parsing. When enabled, memory usage is tracked
+        during DAG file parsing and warnings are emitted when the configured threshold is exceeded.
+        This is a lightweight alternative to the full Memray profiling.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
+    memory_threshold:
+      description: |
+        Memory threshold in bytes for DAG parsing. When memory usage during parsing exceeds
+        this threshold, a warning is emitted. Set to 0 to disable threshold checking.
+        Default is 256MB (268435456 bytes).
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "268435456"
+    memory_warning_rate_limit_seconds:
+      description: |
+        Minimum time in seconds between warnings for the same DAG file to prevent log flooding.
+        This rate limits warnings for repeatedly parsed DAGs that exceed the threshold.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "300"
 
 profiling:
   description: |
