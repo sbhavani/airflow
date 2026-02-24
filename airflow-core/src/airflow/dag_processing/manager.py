@@ -53,6 +53,8 @@ from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.utils.memory_profiler import MemoryMetrics, get_process_memory_info
+from airflow.utils.memory_warnings import emit_warning, store_warning_metrics
 from airflow.exceptions import AirflowException
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
@@ -1235,6 +1237,85 @@ def emit_metrics(*, parse_time: float, stats: Sequence[DagFileStat]):
         )
 
 
+def _record_memory_metrics(
+    session: Session,
+    relative_fileloc: str | None,
+    bundle_name: str,
+    run_duration: float,
+) -> None:
+    """
+    Record memory metrics after DAG parsing.
+
+    This function captures the current process memory usage and stores it
+    to the database if memory monitoring is enabled.
+    """
+    from airflow.configuration import conf
+    from airflow.models.dagparsememory import DagParseMemoryMetric
+    from airflow.utils.memory_profiler import MemoryThresholdConfig
+
+    # Check if memory monitoring is enabled
+    if not conf.getboolean("dag_processing", "memory_threshold_enabled", fallback=True):
+        return
+
+    # Get memory info
+    memory_info = get_process_memory_info()
+    peak_memory_mb = memory_info["rss_mb"]
+
+    # Get threshold config
+    threshold_config = MemoryThresholdConfig.from_config()
+
+    # Determine DAG ID from file path
+    dag_id = Path(relative_fileloc).stem if relative_fileloc else "unknown"
+
+    # Check if threshold exceeded
+    threshold_exceeded = peak_memory_mb > threshold_config.threshold_mb
+
+    # Store metrics
+    metric = DagParseMemoryMetric(
+        dag_id=dag_id,
+        file_path=str(relative_fileloc) if relative_fileloc else "",
+        parse_date=datetime.utcnow(),
+        threshold_mb=threshold_config.threshold_mb,
+        peak_memory_mb=peak_memory_mb,
+        memory_delta_mb=0.0,  # Delta would require tracking across process lifetime
+        threshold_exceeded=threshold_exceeded,
+    )
+    session.add(metric)
+
+    # Emit warning if threshold exceeded
+    if threshold_exceeded:
+        from airflow.utils.memory_warnings import generate_memory_warning, emit_warning_log
+        from airflow.utils.memory_profiler import DagMemoryContext
+
+        context = DagMemoryContext(
+            dag_id=dag_id,
+            file_path=str(relative_fileloc) if relative_fileloc else "",
+            threshold_config=threshold_config,
+        )
+        # Create a minimal metrics object for the warning
+        from airflow.utils.memory_profiler import MemoryMetrics
+
+        metrics = MemoryMetrics(
+            peak_rss_bytes=int(peak_memory_mb * 1024 * 1024),
+            memory_delta_bytes=0,
+            current_rss_bytes=int(peak_memory_mb * 1024 * 1024),
+        )
+        warning = generate_memory_warning(context, metrics)
+        emit_warning_log(warning)
+
+    # Emit Stats metrics
+    Stats.gauge(
+        "dag_processing.peak_memory_mb",
+        peak_memory_mb,
+        tags={"file_name": dag_id, "bundle_name": bundle_name},
+    )
+    Stats.gauge(
+        "dag_processing.memory_threshold_exceeded",
+        1 if threshold_exceeded else 0,
+        tags={"file_name": dag_id, "bundle_name": bundle_name},
+    )
+
+
 def process_parse_results(
     run_duration: float,
     finish_time: datetime,
@@ -1274,6 +1355,14 @@ def process_parse_results(
             "dag_processing.last_duration",
             stat.last_duration,
             tags={"file_name": file_name, "bundle_name": normalized_bundle},
+        )
+
+        # Track memory metrics after DAG parsing
+        _record_memory_metrics(
+            session=session,
+            relative_fileloc=relative_fileloc,
+            bundle_name=bundle_name,
+            run_duration=run_duration,
         )
 
     if parsing_result is None:

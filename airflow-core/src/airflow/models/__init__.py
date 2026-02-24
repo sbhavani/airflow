@@ -66,6 +66,7 @@ def import_all_models():
     import airflow.models.dag_version
     import airflow.models.dagbag
     import airflow.models.dagbundle
+    import airflow.models.dagparsememory
     import airflow.models.dagwarning
     import airflow.models.deadline_alert
     import airflow.models.errors
@@ -106,6 +107,7 @@ __lazy_imports = {
     "DagModel": "airflow.models.dag",
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
+    "DagParseMemoryMetric": "airflow.models.dagparsememory",
     "DagWarning": "airflow.models.dagwarning",
     "DbCallbackRequest": "airflow.models.db_callback_request",
     "Deadline": "airflow.models.deadline",

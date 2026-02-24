@@ -32,6 +32,7 @@ from airflow.api_fastapi.core_api.routes.public.dag_sources import dag_sources_r
 from airflow.api_fastapi.core_api.routes.public.dag_stats import dag_stats_router
 from airflow.api_fastapi.core_api.routes.public.dag_tags import dag_tags_router
 from airflow.api_fastapi.core_api.routes.public.dag_versions import dag_versions_router
+from airflow.api_fastapi.core_api.routes.public.dag_memory import dag_memory_router
 from airflow.api_fastapi.core_api.routes.public.dag_warning import dag_warning_router
 from airflow.api_fastapi.core_api.routes.public.dags import dags_router
 from airflow.api_fastapi.core_api.routes.public.event_logs import event_logs_router
@@ -66,6 +67,7 @@ authenticated_router.include_router(dag_run_router)
 authenticated_router.include_router(dag_sources_router)
 authenticated_router.include_router(dag_stats_router)
 authenticated_router.include_router(config_router)
+authenticated_router.include_router(dag_memory_router)
 authenticated_router.include_router(dag_warning_router)
 authenticated_router.include_router(dags_router)
 authenticated_router.include_router(event_logs_router)
