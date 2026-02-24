@@ -2872,6 +2872,43 @@ dag_processor:
       type: string
       example: ~
       default: "warning"
+    memory_monitoring_enabled:
+      description: |
+        Enable memory monitoring during DAG parsing. When enabled, Airflow will track memory
+        usage during DAG parsing and emit warnings when memory limits are exceeded.
+        This can help identify DAGs that consume excessive memory during parsing.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
+    memory_limit_per_dag:
+      description: |
+        Maximum memory (in MB) a single DAG file should use during parsing.
+        When a DAG file exceeds this limit, a warning will be generated.
+        Set to 0 to disable per-DAG memory limiting.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "512"
+    memory_limit_total:
+      description: |
+        Maximum total memory (in MB) allowed for all DAG parsing operations.
+        When total memory usage exceeds this limit, a warning will be generated.
+        Set to 0 to disable total memory limiting.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "2048"
+    memory_warning_threshold:
+      description: |
+        Memory threshold (as a percentage from 0 to 100) at which warnings are generated.
+        When memory usage exceeds this percentage of the configured limit, a warning is emitted.
+        For example, if set to 80 and memory_limit_per_dag is 512MB, a warning will be generated
+        when a single DAG file uses more than 409MB (80% of 512MB).
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "80"
 
 profiling:
   description: |

@@ -47,6 +47,7 @@ from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_s
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.memory_profiler import MemoryMonitoringResult, get_memory_profiler
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -302,12 +303,35 @@ class DagBag(LoggingMixin):
             self.log.debug("No importer found for file: %s", filepath)
             return []
 
-        result = importer.import_file(
-            file_path=filepath,
-            bundle_path=self.bundle_path,
-            bundle_name=self.bundle_name,
-            safe_mode=safe_mode,
-        )
+        # Get memory profiler for monitoring
+        memory_profiler = get_memory_profiler()
+        memory_warnings: list[str] = []
+
+        # Start memory monitoring before import
+        if memory_profiler.enabled:
+            memory_profiler.start_monitoring()
+
+        try:
+            result = importer.import_file(
+                file_path=filepath,
+                bundle_path=self.bundle_path,
+                bundle_name=self.bundle_name,
+                safe_mode=safe_mode,
+            )
+        finally:
+            # Check memory limits after import and stop monitoring
+            if memory_profiler.enabled:
+                for mem_result in memory_profiler.check_memory_limit(file_path=filepath):
+                    if mem_result.is_warning:
+                        memory_warnings.append(mem_result.message)
+                        self.log.warning(
+                            "memory_limit_exceeded",
+                            file=filepath,
+                            memory_used_mb=mem_result.memory_used_mb,
+                            limit_mb=mem_result.limit_mb,
+                            threshold_percent=mem_result.threshold_percentage,
+                        )
+                memory_profiler.stop_monitoring()
 
         if result.skipped_files:
             for skipped in result.skipped_files:
@@ -337,6 +361,12 @@ class DagBag(LoggingMixin):
                     filename=w.file_path,
                     lineno=w.line_number or 0,
                 )
+
+        # Add memory warnings to captured_warnings
+        if memory_warnings:
+            existing_warnings = list(self.captured_warnings.get(filepath, ()))
+            all_warnings = existing_warnings + memory_warnings
+            self.captured_warnings[filepath] = tuple(all_warnings)
 
         bagged_dags = []
         for dag in result.dags:
