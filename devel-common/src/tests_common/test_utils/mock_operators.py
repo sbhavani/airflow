@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 import attr
 
@@ -33,6 +33,22 @@ try:
 except ImportError:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
+# Import exceptions after BaseOperator to avoid import issues
+try:
+    from airflow.exceptions import AirflowException, AirflowSkipException  # type: ignore[attr-defined]
+except ImportError:
+    # Fallback for cases where Airflow exceptions aren't available
+
+    class AirflowException(Exception):
+        """Fallback AirflowException for testing environments."""
+
+        pass
+
+    class AirflowSkipException(Exception):
+        """Fallback AirflowSkipException for testing environments."""
+
+        pass
 
 
 class MockOperator(BaseOperator):
@@ -198,3 +214,219 @@ class GithubLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         return "https://github.com/apache/airflow"
+
+
+# =============================================================================
+# Comprehensive Mock Operators for DAG Testing
+# =============================================================================
+
+
+class MockSensorOperator(BaseOperator):
+    """
+    Mock sensor operator for testing.
+
+    Allows controlling the poke result to simulate sensor behavior.
+    """
+
+    template_fields: Sequence[str] = ("poke_interval", "timeout")
+
+    def __init__(
+        self,
+        *,
+        poke_interval: float = 60.0,
+        timeout: float = 60.0 * 60 * 24 * 7,
+        poke_result: bool = True,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.poke_interval = poke_interval
+        self.timeout = timeout
+        self.poke_result = poke_result
+
+    def execute(self, context: Context):
+        """Return the configured poke result."""
+        return self.poke_result
+
+    def poke(self, context: Context) -> bool:
+        """Poke the sensor to check if condition is met."""
+        return self.poke_result
+
+
+class MockBranchOperator(BaseOperator):
+    """
+    Mock branch operator for testing.
+
+    Allows controlling which branch to follow.
+    """
+
+    template_fields: Sequence[str] = ("branches",)
+
+    def __init__(
+        self,
+        *,
+        branches: str | list[str] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.branches = branches
+
+    def execute(self, context: Context):
+        """Return the branch to follow."""
+        if self.branches is None:
+            return None
+        if isinstance(self.branches, list):
+            # Return first branch if list
+            return self.branches[0] if self.branches else None
+        return self.branches
+
+
+class MockFailOperator(BaseOperator):
+    """
+    Mock operator that can be configured to fail.
+
+    Useful for testing error handling and retries.
+    """
+
+    template_fields: Sequence[str] = ("fail_message",)
+
+    def __init__(
+        self,
+        *,
+        fail_message: str = "Task failed",
+        fail_at_execute: bool = True,
+        return_value: Any = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.fail_message = fail_message
+        self.fail_at_execute = fail_at_execute
+        self.return_value = return_value
+
+    def execute(self, context: Context):
+        """Execute the operator, optionally raising an exception."""
+        if self.fail_at_execute:
+            raise AirflowException(self.fail_message)
+        return self.return_value
+
+
+class MockPythonOperator(BaseOperator):
+    """
+    Mock Python operator for testing.
+
+    Allows specifying a callable to execute.
+    """
+
+    template_fields: Sequence[str] = ("python_callable",)
+
+    def __init__(
+        self,
+        *,
+        python_callable: Callable[..., Any] | None = None,
+        return_value: Any = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.python_callable = python_callable
+        self.return_value = return_value
+
+    def execute(self, context: Context):
+        """Execute the python callable or return the configured return value."""
+        if self.python_callable is not None:
+            return self.python_callable(context)
+        return self.return_value
+
+
+class MockIncrementOperator(BaseOperator):
+    """
+    Mock operator that increments a counter in XCom.
+
+    Useful for testing task dependencies and XCom.
+    """
+
+    template_fields: Sequence[str] = ("counter_key",)
+
+    def __init__(
+        self,
+        *,
+        counter_key: str = "counter",
+        increment_by: int = 1,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.counter_key = counter_key
+        self.increment_by = increment_by
+
+    def execute(self, context: Context):
+        """Increment the counter and push to XCom."""
+        current = context["ti"].xcom_pull(key=self.counter_key, default=0)
+        new_value = current + self.increment_by
+        context["ti"].xcom_push(key=self.counter_key, value=new_value)
+        return new_value
+
+
+class MockSucceedOperator(BaseOperator):
+    """
+    Mock operator that always succeeds.
+
+    Simple operator for testing DAG structure and dependencies.
+    """
+
+    template_fields: Sequence[str] = ("return_value",)
+
+    def __init__(self, *, return_value: Any = None, **kwargs):
+        super().__init__(**kwargs)
+        self.return_value = return_value
+
+    def execute(self, context: Context):
+        """Return the configured return value."""
+        return self.return_value
+
+
+class MockSensorsListOperator(BaseOperator):
+    """
+    Mock operator that accepts a list of sensor results.
+
+    Useful for testing multiple sensors.
+    """
+
+    template_fields: Sequence[str] = ("sensor_results",)
+
+    def __init__(
+        self,
+        *,
+        sensor_results: list[bool] | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.sensor_results = sensor_results or []
+
+    def execute(self, context: Context):
+        """Return the list of sensor results."""
+        return self.sensor_results
+
+
+class MockSKippableOperator(BaseOperator):
+    """
+    Mock operator that respects the skip mechanism.
+
+    Useful for testing task skipping logic.
+    """
+
+    template_fields: Sequence[str] = ("should_skip", "return_value")
+
+    def __init__(
+        self,
+        *,
+        should_skip: bool = False,
+        return_value: Any = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.should_skip = should_skip
+        self.return_value = return_value
+
+    def execute(self, context: Context):
+        """Execute or skip based on configuration."""
+        if self.should_skip:
+            raise AirflowSkipException("Task skipped")
+        return self.return_value
