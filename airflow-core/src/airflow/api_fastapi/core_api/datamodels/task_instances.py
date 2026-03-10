@@ -73,6 +73,14 @@ class TaskInstanceResponse(BaseModel):
     executor_config: Annotated[str, BeforeValidator(str)]
     note: str | None
     rendered_map_index: str | None
+    error: str | None = Field(
+        default=None,
+        description="Error message from task failure",
+    )
+    error_category: str | None = Field(
+        default=None,
+        description="Category of the error for classification",
+    )
     rendered_fields: dict = Field(
         validation_alias=AliasPath("rendered_task_instance_fields", "rendered_fields"),
         default_factory=dict,

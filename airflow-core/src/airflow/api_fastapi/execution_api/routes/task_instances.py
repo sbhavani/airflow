@@ -411,7 +411,18 @@ def _create_ti_state_update_query_and_update_state(
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
-        query = query.values(state=updated_state, next_method=None, next_kwargs=None)
+
+        # Build update values
+        update_values = {"state": updated_state, "next_method": None, "next_kwargs": None}
+
+        # Add error and error_category for failed tasks
+        if updated_state == TaskInstanceState.FAILED and isinstance(ti_patch_payload, TITerminalStatePayload):
+            if ti_patch_payload.error is not None:
+                update_values["error"] = ti_patch_payload.error
+            if ti_patch_payload.error_category is not None:
+                update_values["error_category"] = ti_patch_payload.error_category
+
+        query = query.values(**update_values)
 
         if updated_state == TaskInstanceState.FAILED:
             # This is the only case needs extra handling for TITerminalStatePayload

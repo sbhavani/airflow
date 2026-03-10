@@ -741,6 +741,10 @@ class TaskState(BaseModel):
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
     rendered_map_index: str | None = None
+    error: str | None = Field(default=None, description="Error message if task failed")
+    error_category: str | None = Field(
+        default=None, description="Error category for classification"
+    )
 
 
 class SucceedTask(TISuccessStatePayload):
