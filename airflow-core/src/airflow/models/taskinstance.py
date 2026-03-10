@@ -458,6 +458,8 @@ class TaskInstance(Base, LoggingMixin):
     last_heartbeat_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
     executor: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Error message from the last failed task execution attempt
+    error: Mapped[str | None] = mapped_column(Text(), nullable=True)
     executor_config: Mapped[dict] = mapped_column(ExecutorConfigType(pickler=dill))
     updated_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True

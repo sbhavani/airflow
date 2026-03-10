@@ -861,6 +861,15 @@ export type DagTagResponse = {
 };
 
 /**
+ * Error diagnostic response containing possible causes and remediation steps.
+ */
+export type ErrorDiagnosticResponse = {
+    error_type: string;
+    possible_causes: Array<string>;
+    remediation_steps: Array<string>;
+};
+
+/**
  * Dag Version serializer for responses.
  */
 export type DagVersionResponse = {
@@ -1399,6 +1408,10 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    /** Error message from the task execution attempt */
+    error: string | null;
+    /** Error diagnostic with possible causes and remediation steps */
+    error_diagnostic: ErrorDiagnosticResponse | null;
 };
 
 /**
@@ -1441,6 +1454,10 @@ export type TaskInstanceResponse = {
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
+    /** Error message from the last failed task execution attempt */
+    error: string | null;
+    /** Error diagnostic with possible causes and remediation steps */
+    error_diagnostic: ErrorDiagnosticResponse | null;
 };
 
 /**

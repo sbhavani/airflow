@@ -33,6 +33,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
+import { ErrorDiagnostics } from "./ErrorDiagnostics";
 import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
 
@@ -214,6 +215,12 @@ export const Details = () => {
           </Table.Row>
         </Table.Body>
       </Table.Root>
+      <Box mt={4}>
+        <ErrorDiagnostics
+          error={tryInstance?.error}
+          errorDiagnostic={tryInstance?.error_diagnostic}
+        />
+      </Box>
     </Box>
   );
 };
