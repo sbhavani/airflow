@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Pytest configuration for tests_common unit tests."""
 from __future__ import annotations
 
 import pytest
@@ -25,6 +26,8 @@ from tests_common.test_utils.stream_capture_manager import (
     StdoutCaptureManager,
     StreamCaptureManager,
 )
+
+pytest_plugins = ["tests_common.pytest_plugin"]
 
 
 @pytest.fixture
