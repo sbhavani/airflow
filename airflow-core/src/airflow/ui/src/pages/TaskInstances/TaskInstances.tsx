@@ -31,6 +31,7 @@ import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ErrorCategoryBadge } from "src/components/ErrorDiagnostics";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
@@ -143,6 +144,18 @@ const taskInstanceColumns = ({
     header: () => translate("state"),
   },
   {
+    accessorKey: "error_category",
+    cell: ({ row: { original } }: TaskInstanceRow) => {
+      const errorDiagnostics = original.error_diagnostics;
+      if (!errorDiagnostics || !errorDiagnostics.error_category) {
+        return null;
+      }
+      return <ErrorCategoryBadge category={errorDiagnostics.error_category} />;
+    },
+    enableSorting: false,
+    header: translate("taskInstance.errorCategory"),
+  },
+  {
     accessorKey: "start_date",
     cell: ({ row: { original } }) =>
       Boolean(taskId) && Boolean(runId) ? (
@@ -227,6 +240,7 @@ export const TaskInstances = () => {
     columnVisibility: {
       dag_version: false,
       end_date: false,
+      error_category: false,
       executor: false,
       hostname: false,
       pool: false,

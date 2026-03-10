@@ -80,6 +80,7 @@ class TaskInstanceResponse(BaseModel):
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
     dag_version: DagVersionResponse | None
+    error_diagnostics: dict[str, Any] | None
 
 
 class TaskInstanceCollectionResponse(BaseModel):

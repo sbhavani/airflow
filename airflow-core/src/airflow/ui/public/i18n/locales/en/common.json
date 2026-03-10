@@ -242,6 +242,7 @@
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",
+    "errorCategory": "Error Category",
     "executor": "Executor",
     "executorConfig": "Executor Config",
     "hostname": "Hostname",
